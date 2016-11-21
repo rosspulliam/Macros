@@ -13,16 +13,15 @@ SUB check_Zone
 /if (${Debug} || ${Debug_Background}) /echo |- check_Zone ==>
 	| Set current zone ID
 	/varset currentZone ${Zone.ID}
-
 	| If im not wearing chest(dead) and not waiting for rez, wait for rez
-		/if (!${Bool[${InvSlot[chest].Item}]} && !${Waiting4Rez} && ${Me.Level}>=50) {
-			/if (!${Defined[Waiting4Rez]}) /declare Waiting4Rez bool outer TRUE
-			/call Wait4Rez
-		}
+	|	/if (!${Bool[${InvSlot[chest].Item}]} && !${Waiting4Rez} && ${Me.Level}>=50) {
+	|		/if (!${Defined[Waiting4Rez]}) /declare Waiting4Rez bool outer TRUE
+	|		/call Wait4Rez
+	|	}
 	| Update macro timers
 	/varset idleTimer ${idleInterval}m
 	| Turn off assist / attack
-	/if (${Assisting} || ${Me.Combat} || ${NetBots[${Me}].CombatState}==0) /call AssistOff
+	/call AssistOff
 	| Load Spellset
 	/if (${Me.Class.CanCast} && ${Defined[Default_SpellSet]}) /call check_Gems
 	| Reset ignored spell list
@@ -202,6 +201,9 @@ SUB completePendingExchange
 	| Check for the item needing to be swapped back.
 	/declare itemToSwapBack string local ${Ini[${MacroData_Ini},${Me.CleanName}-${MacroQuest.Server},Pending Exchange].Arg[1,/]}
   /declare swapItemSlot ${Ini[${MacroData_Ini},${Me.CleanName}-${MacroQuest.Server},Pending Exchange].Arg[2,/]}
+  |/echo ${itemToSwapBack} ${itemToSwapBack.Length}  ${swapItemSlot} ${swapItemSlot.Length}
+  /if (!${Bool[${itemToSwapBack}]} || !${Bool[${swapItemSlot}]}) /return
+
   /if (${Me.Inventory[${swapItemSlot}].Name.Equal[${itemToSwapBack}]})  {
     /if (${itemToSwapBack.NotEqual[NONE]}) /call WriteToIni "${MacroData_Ini},${Me.CleanName}-${MacroQuest.Server},Pending Exchange" NONE 1
   } else /if (!${FindItemCount[${itemToSwapBack}]}) {
@@ -441,6 +443,7 @@ Sub background_Aliases
 	/noparse /squelch /alias /AddAutoDestroy /echo Add Auto-Destro item ${Cursor.Name}
 	/noparse /squelch /alias /RemoveAutoDestroy /echo Remove Auto-Destro item ${Cursor.Name}
 	/squelch /alias /tributezone /bc Set Tribute Zone
+	/noparse /squelch /alias /reporttrib /noparse /bcaa //gu ${Me.CurrentFavor}
 /return
 
 |----------------------------------------------------------------------------------------------------|

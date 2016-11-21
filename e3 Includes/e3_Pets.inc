@@ -21,8 +21,8 @@ SUB check_Pets
 SUB summonPet
 /if (${Debug} || ${Debug_Pets}) /echo |- summonPet ==>
   |handle zone delay to prevent summoning pet if one exists
-  /if (!${Bool[${Zone.ID}]} || ${currentZone} != ${Zone.ID}) {
-    /delay 8s
+  /if (!${Bool[${Zone.ID}]} || ${currentZone} != ${Zone.ID} || ${SpawnCount[pc = ${Me}]}==0) {
+    /delay 3s
     /call check_Zone
     /return
   }
@@ -112,18 +112,19 @@ SUB buffPet
 	/for s 1 to ${petBuffs2D.Size[1]}
 	|/echo ${petBuffs2D[${s},${iCastName}]} stack ${petBuffs2D[${s},${iSpellName}]} ${Spell[${petBuffs2D[${s},${iSpellName}]}].StacksPet} has !${Bool[${Me.PetBuff[${petBuffs2D[${s},${iSpellName}]}]}]}
 	|removing ${Spell[${petBuffs2D[${s},${iSpellName}]}].StacksPet} for now as balikor's mark reports non-stacking
-    /if (!${Bool[${Me.PetBuff[${petBuffs2D[${s},${iSpellName}]}]}]}) {
-      /call check_Ready "petBuffs2D" ${s}
-      /if (${Macro.Return}) {
-        /if (${Me.Pet.Distance} < ${petBuffs2D[${s},${iMyRange}]}) {
-          /call check_Mana "petBuffs2D" ${s}
-          /if (${Macro.Return}) {
-            /call e3_Cast ${Me.Pet.ID} "petBuffs2D" ${s}
-          }
+  /if (!${Bool[${Me.PetBuff[${petBuffs2D[${s},${iSpellName}]}]}]} && !${Bool[${Me.PetBuff[${petBuffs2D[${s},${iCheckFor}]}]}]}) {
+    /call check_Ready "petBuffs2D" ${s}
+    /if (${Macro.Return}) {
+      /if (${Me.Pet.Distance} < ${petBuffs2D[${s},${iMyRange}]}) {
+        /call check_Mana "petBuffs2D" ${s}
+        /if (${Macro.Return}) {
+          /call e3_Cast ${Me.Pet.ID} "petBuffs2D" ${s}
         }
       }
-		}
-	/if (!${ActionTaken}) /next s
+    }
+  }
+  :skipBuff
+  /if (!${ActionTaken}) /next s
 /if (${Debug} || ${Debug_Pets}) /echo <== buffPet -|
 /RETURN
 

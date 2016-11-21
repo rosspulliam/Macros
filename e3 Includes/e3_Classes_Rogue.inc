@@ -7,41 +7,15 @@
 |--------------------------------------------------------------------------------|
 Sub check_rogStrike
 /if (${Debug}) /echo |- rogueStrike ==>	
-	/if (${Assisting} && ${Me.Endurance} > ${strikeDiscEndCost} && ${Me.PctEndurance} >= ${strikeDiscMinEnd} && ${Me.CombatAbilityReady[${strikeDisc}]} && ${Me.AbilityReady[Backstab]} && ${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal[No Effect]}) {
-		| Turn off combat.
-		/if (${Me.Combat}) /attack off
-		/if (${Stick.Active}) /squelch /stick pause			
-		
-		/if (!${Me.Sneaking}) {
-			/if (${Me.AbilityReady[Sneak]}) {
-				/doability Sneak
-			} else {
-				/goto :skipStrike
-			}
-		}
-		/delay 5 ${Me.Sneaking}
-		/if (!${Me.Invis}) {
-			/if (${Me.AbilityReady[Hide]}) {
-				/doability Hide
-			} else {
-				/goto :skipStrike
-			}
-		}	
-		/delay 5 ${Me.Invis}
+	/if (${Me.Endurance} > ${strikeDiscEndCost} && ${Me.PctEndurance} >= ${strikeDiscMinEnd} && ${Me.CombatAbilityReady[${strikeDisc}]} && ${Me.AbilityReady[Backstab]} && !${Me.ActiveDisc.ID} && ${Me.Invis} && ${Me.Sneaking}) {
 		| Use 'Assassin's Strike' type disc.
-		:waitForDisc
 		/delay 1
-		/if (!${Me.Sneaking} || !${Me.Invis}) /goto :skipStrike
 		/disc ${strikeDisc}
-		/delay 5 ${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.NotEqual[No Effect]}
-		/if (${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal[No Effect]} && ${Me.CombatAbilityReady[${strikeDisc}]}) /goto :waitForDisc
-		/delay 2
+		/delay 5 ${Bool[${Me.ActiveDisc.ID}]}
+		/delay 3
 		/doability Backstab
-
-		/if (!${Me.CombatAbilityReady[${strikeDisc}]}) /varset strikeTimer 300
-		:skipStrike
+		/delay 1
 		/attack on
-		/squelch /stick unpause
 	}
 /if (${Debug}) /echo <== rogueStrike -|
 /return
@@ -56,12 +30,12 @@ sub AutoHide
 	| Engage sneak.
 	/if (!${Me.Sneaking} && ${Me.AbilityReady[Sneak]}) {
 		/doability Sneak
-		/delay 2s ${Me.Sneaking}
+		/delay 1s ${Me.Sneaking}
 	}
 	| Engage hide.
 	/if (${Me.Sneaking} && ${Me.AbilityReady[Hide]}) {
 		/doability Hide
-		/delay 2s ${Me.Invis}
+		/delay 1s ${Me.Invis}
 	}
 /if (${Debug}) /echo <== AutoHide -|
 /return
@@ -73,16 +47,11 @@ sub AutoHide
 |------------------------------------------------|
 sub AutoEvade
 /if (${Debug}) /echo |- AutoEvade ==>
-|only evade when strike is on cooldown with more than 8 sec left, otherwise it burns hide cd
-  |/echo razorTimer ${razorTimer}
-  |/echo h ${Me.AbilityReady[Hide]} d !${Bool[${Me.CombatAbilityReady[${strikeDisc}]}]}
-	/if (${Me.AbilityReady[Hide]} && (!${Bool[${strikeDisc}]} || ${strikeTimer}>80 || ${Me.Endurance} < ${strikeDiscEndCost} || ${Me.PctEndurance} < ${strikeDiscMinEnd} || !${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.Equal[No Effect]})) {
-		| Turn off combat.
+	/if (${Me.AbilityReady[Hide]} && !${Bool[${Me.ActiveDisc.ID}]}) {
 		/attack off
 		/delay 1s !${Me.Combat}	
 		/doability Hide
-		/delay 1s ${Me.Invis}		
-		| Turn combat back on.
+		/delay 1s ${Me.Invis}
 		/attack on
 	}
 /if (${Debug}) /echo <== AutoEvade -|
@@ -98,11 +67,14 @@ Sub ROG_Setup
 	/call IniToVar "${Character_Ini},Rogue,Sneak Attack Discipline" strikeDiscStr string outer
 	/declare strikeDisc 		string outer ${strikeDiscStr.Arg[1,/]}
 	/declare strikeDiscEndCost  string outer ${Spell[${strikeDiscStr}].EnduranceCost}	
-	/declare strikeDiscMinEnd	int outer 0	
-	/if (${strikeDiscStr.Find[/MinEnd|]}) {
-		/call argueString MinEnd "${MyAbilities[${i}]}"
-		/varset strikeDiscMinEnd ${Macro.Return}
-	}	
+	/declare strikeDiscMinEnd	int outer 0
+
+  /if (${Bool[${strikeDisc}]} && !${AutoHide}) /docommand ${ChatToggle} I cannot use ${strikeDisc} without AutoHide On
+
+  /if (${strikeDiscStr.Find[/MinEnd]}) {
+    /call argueString MinEnd "${strikeDiscStr}"
+    /varset strikeDiscMinEnd ${Macro.Return}
+	}
 /if (${Debug}) /echo <== ROG_Setup -|
 /return
 
@@ -125,5 +97,5 @@ Sub ROG_Aliases
 /return
 
 Sub ROG_Background_Events
-	/if (${AutoHide} && !${Me.Invis} && !${Me.Moving} && ${NetBots[${Me}].CombatState} > 0) /call AutoHide
+	/if (${AutoHide} && !${Me.Invis} && !${Me.Moving} && ${NetBots[${Me}].CombatState} > 0 && !${Me.Combat}) /call AutoHide
 /return

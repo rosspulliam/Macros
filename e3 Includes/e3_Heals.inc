@@ -323,7 +323,7 @@ SUB hot_Allbots
 			/if (${Bool[${NetBots[${currClient}].InZone}]} && ${NetBots[${currClient}].PctHPs} <= ${hotSpells2D[${s},${iHealPct}]}) {
 				/call check_HotAllStack "${currClient}"
 				/if (${Macro.Return}) {						
-					/call check_Ready"hotSpells2D" ${s}
+					/call check_Ready "hotSpells2D" ${s}
 					|/echo check_Ready ${Macro.Return}
 					/if (${Macro.Return}) {
 						/call check_Distance ${NetBots[${currClient}].ID} ${hotSpells2D[${s},${iMyRange}]}
@@ -518,7 +518,7 @@ SUB check_HealGroupCasting(ArrayName, int ArrayIndex)
 		/if (${Macro.Return}) {
 			/varcalc targetCount ${targetCount} + 1
 			/varcalc avgGrpHealth ${avgGrpHealth} + ${NetBots[${Group.Member[${g}]}].PctHPs}
-			/if (${NetBots[${Group.Member[${g}]}].PctHPs}  <= ${${ArrayName}[${ArrayIndex},${iHealPct}]}) /varcalc numLowHp ${numLowHp} + 1
+			/if (${Bool[${NetBots[${Group.Member[${g}]}].ID}]} && ${NetBots[${Group.Member[${g}]}].PctHPs}  <= ${${ArrayName}[${ArrayIndex},${iHealPct}]}) /varcalc numLowHp ${numLowHp} + 1
 		}
 	|/echo ${NetBots[${Group.Member[${g}]}].PctHPs} ${${ArrayName}[${ArrayIndex},${iHealPct}]}
 	/next g
@@ -544,13 +544,13 @@ SUB groupHeals
 		/declare s int local
 		
 		/for s 1 to ${groupHeals2D.Size[1]}
-			/call check_Ready "groupHeals2D" ${s}
+			/call check_HealGroupCasting "groupHeals2D" ${s}
 			/if (${Macro.Return}) {
 				/call check_Mana "groupHeals2D" ${s}
 				/if (${Macro.Return}) {		
-					/call check_HealGroupCasting "groupHeals2D" ${s}
+					/call check_Ready "groupHeals2D" ${s}
 					/if (${Macro.Return}) {	
-						/echo check_HealGroupCasting
+						|/echo check_HealGroupCasting
 						/call e3_Cast ${Me.ID} "groupHeals2D" ${s}
 					}
 				}

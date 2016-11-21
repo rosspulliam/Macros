@@ -50,17 +50,22 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
 	/if (!${${ArrayName}[${ArrayIndex},${iCastInvis}]} && ${Me.Invis}) {
     /echo invisskip ${pendingCast} ${Spawn[id ${targetID}].Name}  ${targetID}
 	} else {
-    /echo cast ${pendingCast} ${Spawn[id ${targetID}].Name}  ${targetID}
+    /echo cast ${pendingCast} ${pendingCastID} ${Spawn[id ${targetID}].Name}  ${targetID}
   }
 	|/call explodeforcallstack
-  |/varset Debug_Casting TRUE
+|  /varset Debug_Casting TRUE
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 | Checks to abort casting due to previous failures
 
   |if im invis and iCastInvis=0 (default except for heals)
-  /if (!${${ArrayName}[${ArrayIndex},${iCastInvis}]} && ${Me.Invis}) {
-    /varset castReturn CAST_INVISIBLE
-    /goto :skipCast
+  |if im a rog, not in combat, done no action for 10+ seconds, and near 2+ other players then drop invis to buff (allows autohide)
+  /if (${Me.Invis}) {
+    /if (${Me.Class.ShortName.Equal[Rog]} && !${Me.Combat} && ${SpawnCount[pc radius 40]} > 2 && ${idleTimer}< 2900) {
+      /makemevisible
+    } else /if (!${${ArrayName}[${ArrayIndex},${iCastInvis}]}) {
+      /varset castReturn CAST_INVISIBLE
+      /goto :skipCast
+    }
   }
   |- Check if spell has a NOHOLD timer
 	/if (${Bool[${nht${targetID}-${pendingCastID}}]}) {
@@ -92,10 +97,18 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
 	}
   |- Dont cast while waiting for char to load post-zoning
   /if (${currentZone} != ${Zone.ID}) {
-  |  /echo in zonemismatch
-    /delay 5s
+    /delay 1s
     /varset castReturn CAST_ZONING
     /goto :skipCast
+  }
+  |pain in the ass rogue-specific logic
+  /if (${Me.Class.ShortName.Equal[Rog]}) {
+    /if (${Me.Invis}) {
+      |im near other people its ok to break hide
+      /if (${SpawnCount[pc radius 30]} > 1 && ${Me.AbilityReady[Hide]}) {
+        /doability hide
+      }
+    }
   }
 |~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~		
 |  Basic Checks
@@ -133,22 +146,27 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
 	|~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	|Use Disc
 	/if (${${ArrayName}[${ArrayIndex},${iCastType}].Equal[Disc]}) {
-		/if (${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text.NotEqual[No Effect]} && ${${ArrayName}[${ArrayIndex},${iDuration}]}) {
+		/if (${Me.ActiveDisc.ID} && ${${ArrayName}[${ArrayIndex},${iDuration}]}) {
 			/if (${Debug} || ${Debug_Casting}) /echo |- QuickBurn -| Waiting on disc [${Window[CombatAbilityWnd].Child[CAW_CombatEffectLabel].Text}]
 			/varset castReturn ACTIVEDISC
 			/goto :skipCast
 		} else {
 			| Only change targets if needed
-			/if (${targetID} != ${Me.ID}) {
+			/if (${targetID} != ${Me.ID} && ${Target.ID} != ${targetID}) {
 				/squelch /target id ${targetID}
 				/delay 5 ${Target.ID} == ${targetID}
 			}
+      /varset ActionTaken TRUE
 			/disc ${pendingCast}
 		}
 	|-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	|- Abilities should never go to e3_cast, just a safeguard
 	} else /if (${${ArrayName}[${ArrayIndex},${iCastType}].Equal[Ability]}) {
-		/if (${Me.AbilityReady[${abilityName}]}) /doability ${pendingCast}
+		/if (${Me.AbilityReady[${abilityName}]}) {
+      /varset ActionTaken TRUE
+		  /doability ${pendingCast}
+    }
+
 	|-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 	|- Spells, AA, Items
 	} else {
@@ -177,7 +195,7 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
 				/varset pendingType ${DefaultGem}
 			}
 		}
-		
+    |/echo atcast "${pendingCastID}|${pendingType}" "-targetid|${targetID}"
 		/varset ActionTaken TRUE
 		/casting "${pendingCastID}|${pendingType}" "-targetid|${targetID}"
 
@@ -218,7 +236,8 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
           /goto :interrupted
 				}
 				|-Dead target and I'm not using a detrimental AE
-				/if (${Spawn[id ${Target.ID}].Type.Equal[Corpse]} && !${Select[${${ArrayName}[${ArrayIndex},${iTargetType}]},PB AE,Targeted AE,Corpse]}) {
+				|/echo ${${ArrayName}[${ArrayIndex},${iCastName}]} ${${ArrayName}[${ArrayIndex},${iTargetType}]}
+				/if (!${Bool[${Target.ID}]} && !${Select[${${ArrayName}[${ArrayIndex},${iTargetType}]},PB AE,Targeted AE,Corpse]}) {
           /if (${Debug} || ${Debug_Casting}) /echo target corpse called interrupt
 					/call interrupt
           /goto :interrupted
@@ -244,6 +263,9 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
 				/doevents Follow
 				/doevents Stop
 				/doevents MoveHere
+				/doevents BackOff
+				/doevents clickit
+				/doevents bark
 				/doevents vetAA_Background_Events
 
         |/varset Debug_Casting FALSE
@@ -274,17 +296,17 @@ Sub e3_Cast(int targetID, ArrayName, int ArrayIndex)
 		} else /if (${Select[${castReturn},CAST_OUTDOORS,CAST_COMPONENTS,CAST_UNKNOWN]}) {
 			/docommand ** ${ChatToggle} Adding to failureList due to Return Events CAST_OUTDOORS,CAST_COMPONENT,CAST_UNKNOWN
 			/varset failureList ${failureList}${pendingCastID},		
-		} 
-	
+		}
+  }
+
 :skipCast
 	/if (${oldItem.Length}) /call SwapItem "${oldItem}" "${${ArrayName}[${ArrayIndex},${iItemMustEquip}]}"
-	/if (${returnTwist})	/call unpauseTwist	
+
 	/if (${Following} && !${Assisting}) /call AquireFollow
-	|-target revert handled in e3_assist
+  /if (${returnTwist})	/call unpauseTwist
 	
 	/if (${Debug} || ${Debug_Casting})  /echo |- e3_Cast -| castReturn= ${Cast.Result} ${castReturn}
-	}
-	/varset Debug_Casting FALSE
+	|/varset Debug_Casting FALSE
 /return
 
 |------------------------------------------------|
@@ -323,10 +345,10 @@ Sub memorize_spell(spellName,gemNum)
 |- concept from KA                        	    -|
 |- MQ needs a .recovered function               -|
 |------------------------------------------------|
-|Sub check_GCD
-|  /declare passCheck bool local FALSE
-|  /if (!${Me.Class.ShortName.Equal[DRU]} && !${Me.SpellReady[${castWhat}]} && !${Me.SpellReady[${Me.Gem[1].Name}]} && !${Me.SpellReady[${Me.Gem[3].Name}]} && !${Me.SpellReady[${Me.Gem[5].Name}]} && !${Me.SpellReady[${Me.Gem[7].Name}]}) {
-|/RETURN ${passCheck}
+Sub check_GCD
+  /declare passCheck bool local FALSE
+  /if (${Me.SpellReady[${Me.Gem[1].Name}]} || ${Me.SpellReady[${Me.Gem[3].Name}]} || ${Me.SpellReady[${Me.Gem[5].Name}]} || ${Me.SpellReady[${Me.Gem[7].Name}]}) /varset passCheck TRUE
+/RETURN ${passCheck}
 
 |------------------------------------------------|
 |- Check if the Target is in Zone and in Range  -|

@@ -12,7 +12,7 @@
 SUB check_Buffs
 	/if (${Debug} || ${Debug_BuffCheck}) /echo |- buffCheck ==>
 	/if (${BuffCheck} ) {
-		/if (!${ActionTaken} && !${activeTimer} && ${BuffCombatCheck} && !${idle} && ${Me.PctHPs} > ${min_BuffCheckHealth} && (!${medBreak} || ${Me.Combat}))	/call buffBots "CombatBuffs2D"
+		/if (!${ActionTaken} && !${activeTimer} && ${BuffCombatCheck} && !${idle} && (!${medBreak} || ${Me.Combat}))	/call buffBots "CombatBuffs2D"
 		/if (!${ActionTaken} && ${InstantBuffs2D.Size[1]})		/call buffBots "InstantBuffs2D"
 		/if (!${ActionTaken} && !${combatTimer} && !${activeTimer} && !${Me.Combat} && !${Assisting} && !${Me.Moving} && ${NetBots[${Me}].CombatState} > 0 && ${BuffCheck}) {
 			/if (!${ActionTaken} && ${SelfBuffs2D.Size[1]})	/call buffBots "SelfBuffs2D"
@@ -49,17 +49,17 @@ SUB buffBots(ArrayName)
 		/varset buffTarget ${${ArrayName}[${s},${iCastTarget}]}
 	}
 	/varset buffSpellName		${${ArrayName}[${s},${iSpellName}]}
-	/varset buffSpellID			${Spell[${buffSpellName}].ID}
+	/varset buffSpellID			${${ArrayName}[${s},${iSpellID}]}]
 	/varset buffCheckForName	${${ArrayName}[${s},${iCheckFor}]}
-	/varset buffCheckForID		${Spell[${buffCheckForName}].ID}
-	/if (${buffCheckForID}==0) /varset buffCheckForID -1
+	/varset buffCheckForID		${${ArrayName}[${s},${iCheckForID}]}
 
+
+	|/echo ${buffSpellName} ${buffSpellID} ${buffCheckForName} ${buffCheckForID} ${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]}
   |/echo ${buffSpellName} ${Select["${buffSpellName}","Thief's Eyes", "Fists of Wu", "Commanding Voice","Cry Havoc"]}
-  /if (${Select[${Spell[${buffSpellName}].ID},8001,8002,8000,8003]}) {
+  /if (${Select[${buffSpellID},8001,8002,8000,8003]}) {
     /call meleeCombatBuffs "${ArrayName}" ${s}
     /goto :skipBuff
   }
-
 	/call check_Mana "${ArrayName}" ${s}
 	/if (${Macro.Return}) {
 		|------- Self ------|
@@ -84,12 +84,16 @@ SUB buffBots(ArrayName)
 		|------- Netbots ------| 		
 			/call check_Distance ${buffTargetID} ${${ArrayName}[${s},${iMyRange}]}
 			/if (${Macro.Return}) {
-			  /if (!${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]}		&& !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffSpellID} ]}]}) {
+			  /if (!${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]}	&& !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffSpellID} ]}]}) {
 				/if (!${Bool[${NetBots[${buffTarget}].Buff.Find[${buffCheckForID} ]}]}	&& !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffCheckForID} ]}]}) {
 				  /if (!${${ArrayName}[${s},${iTargetType}].Equal[Single in Group]} || ${Bool[${Group.Member[${buffTarget}]}]}) {
             /call check_Ready "${ArrayName}" ${s}
             /if (${Macro.Return}) {
 					    /call e3_Cast ${buffTargetID} "${ArrayName}" ${s}
+					    /delay 3 ${Target.BuffsPopulated}
+              /if (${castReturn.Equal[CAST_SUCCESS]} && !${Bool[${NetBots[${buffTarget}].Buff.Find[${buffSpellID} ]}]}	&& !${Bool[${NetBots[${buffTarget}].ShortBuff.Find[${buffSpellID} ]}]}) {
+                /call CreateTimer "nht${Target.ID}-${buffSpellID}" "${noHoldDelay}"
+              }
             }
 				  } else /if (${Debug} || ${Debug_BuffCheck}) /echo ~Bot is not in group for groupbuff~		
 				} else /if (${Debug} || ${Debug_BuffCheck}) /echo ~Bot has checkFoR buff~
@@ -106,7 +110,7 @@ SUB buffBots(ArrayName)
 SUB meleeCombatBuffs(ArrayName, int s)
 |/echo mcb ${s} ${NetBots[${${ArrayName}[${s},${iCastTarget}]}].Name} ${${ArrayName}[${s},${iCastName}]}
 /if (${Debug} || ${Debug_BuffCheck}) /echo |- meleeCombatBuffs ${ArrayName} ${s} ==>
-  /if (${NetBots[${Me}].CombatState} == 0) {
+  /if (${NetBots[${Me}].CombatState} == 0 || ${Me.Combat}) {
     /declare buffTargetID	int local ${NetBots[${${ArrayName}[${s},${iCastTarget}]}].ID}
     /if (!${Bool[${NetBots[${${ArrayName}[${s},${iCastTarget}]}].ShortBuff.Find[${${ArrayName}[${s},${iCastID}]} ]}]}) {
       | if the target is me, ensure my group leader does not have the buff (cleaving anger + cry havoc)

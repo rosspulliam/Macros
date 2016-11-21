@@ -53,6 +53,8 @@ SUB event_Chat(ChatChannel, ChatSender, ChatText)
 				/if (${ChatText.Find[Port]}) {
 					/if (${Stick.Active}) /squelch /stick off
 					/if (${NetAdvPath.Status}==1) /squelch /netfollow off
+					/varset FollowTarget NULL
+					/varset Following FALSE
 					/delay 30 !${Stick.Active} && ${NetAdvPath.Status}==0
 				}
 
@@ -194,6 +196,7 @@ SUB event_Chat(ChatChannel, ChatSender, ChatText)
 										}
 
                     /if (${Me.Book[${whatToCast}]} && !${Bool[${Me.Gem[${whatToCast}]}]}) /call memorize_spell "${whatToCast}" ${DefaultGem}
+                    |/delay 5s ${Me.SpellReady[${spellName}]}
 										/casting "${whatToCast}" ${DefaultGem} "-targetid|${Spawn[pc =${newChatSender}].ID}" -maxtries|3
 									}
 								}		
@@ -572,7 +575,8 @@ SUB MakeSpellAliases_Ini
 	/call WriteToIni "${SpellAliases_Ini},Druid,GroupWolf" "Share Form of the Great Wolf"
 	/call WriteToIni "${SpellAliases_Ini},Druid,GroupInvis" "Foliage Shield"
 	/call WriteToIni "${SpellAliases_Ini},Druid,Evac" "Succor"
-	
+
+	/call WriteToIni "${SpellAliases_Ini},Druid,GPortIceclad" "Circle of Iceclad"
 	/call WriteToIni "${SpellAliases_Ini},Druid,GPortNK" "Circle of Karana"
 	/call WriteToIni "${SpellAliases_Ini},Druid,GPortLavastorm" "Circle of Lavastorm"
 	/call WriteToIni "${SpellAliases_Ini},Druid,GPortSRo" "Circle of Ro"
@@ -716,7 +720,7 @@ SUB MakeSpellAliases_Ini
 	/call WriteToIni "${SpellAliases_Ini},Wizard,GPortCS" "Cobalt Scar Portal"
 	/call WriteToIni "${SpellAliases_Ini},Wizard,GPortWL" "Wakening Lands Portal"
 	/call WriteToIni "${SpellAliases_Ini},Wizard,GPortGD" "Great Divide Portal"
-	/call WriteToIni "${SpellAliases_Ini},Wizard,GPortIceclade" "Iceclad Portal"
+	/call WriteToIni "${SpellAliases_Ini},Wizard,GPortIceclad" "Iceclad Portal"
   /call WriteToIni "${SpellAliases_Ini},Wizard,GPortWallOfSlaughter" "Slaughter Portal"
   /call WriteToIni "${SpellAliases_Ini},Wizard,GPortWoS" "Slaughter Portal"
   /call WriteToIni "${SpellAliases_Ini},Wizard,GPortBloodfields" "Bloodfields Portal"
